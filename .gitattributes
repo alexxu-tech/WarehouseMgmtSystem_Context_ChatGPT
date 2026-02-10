@@ -1,0 +1,3 @@
+# Set default behavior to automatically normalize line endings
+# LF in the repo, CRLF on checkout in Windows
+* text=auto eol=lf
