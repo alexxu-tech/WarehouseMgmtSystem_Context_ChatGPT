@@ -1,58 +1,20 @@
-# Warehouse Management System — Project Context
+# Warehouse Management System — Context Hub
 
-This repository contains architectural decisions, workflows, and design context
-for the Warehouse Management System (WMS) project.
+This repository is the **single source of truth for project context** (architecture, workflows, decisions, and curated conversation summaries).
 
-It serves as a long-term knowledge base for:
+## Quick Start (read in this order)
+1. `status/current.md` — what’s done / in progress / next
+2. `status/next-actions.md` — what to do next
+3. `architecture/overview.md` — how the system fits together
+4. `workflows/dev-environment.md` — how to run it locally
+5. `decisions/0001-dev-workflow.md` — why dev scripts exist
 
-- System design rationale
-- Development workflows
-- Technical trade-offs
-- Historical decisions
-- AI-assisted development context
+## Code vs Context
+- Source Code repo: https://github.com/wwpswwps/WarehouseMgmtSystem
+- Context repo (this repo): documentation only (no source code)
 
-This repository is NOT source code.
-It documents *why* and *how* things are built.
-
----
-
-## Project Goals
-
-- Build a scalable, cloud-ready Warehouse Management System
+## Goals (from existing context)
+- Scalable, cloud-ready WMS
 - Backend: FastAPI + PostgreSQL + Redis
-- Frontend: Vite + modern JS framework
-- Focus on maintainability and automation
-- Support AI-assisted development
-
----
-
-## Main Repositories
-
-- Source Code:
-  https://github.com/wwpswwps/WarehouseMgmtSystem
-
-- Context Repository:
-  (this repository)
-
----
-
-## Repository Structure
-
-| Directory     | Purpose                                  |
-|---------------|------------------------------------------|
-| architecture/ | System design and component layout       |
-| decisions/    | Architecture Decision Records (ADR)      |
-| workflows/    | Development and release workflows        |
-| conversations/| Curated AI/human discussion summaries    |
-| glossary.md   | Project terminology                      |
-
----
-
-## How to Use This Repo
-
-1. All major technical decisions must be documented in `decisions/`
-2. Development workflows go in `workflows/`
-3. Architecture updates go in `architecture/`
-4. Important AI discussions should be summarized in `conversations/`
-
-This repo is the single source of truth for project context.
+- Frontend: Vite-based SPA (React/Vue-ready)
+- Maintainability, automation, and repeatable dev workflow
