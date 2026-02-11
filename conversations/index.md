@@ -1,6 +1,15 @@
-# Conversation Index
+# Conversations — Index
 
-This index is a navigation aid. Each file in this directory is a **summary outcome**, not a transcript.
+This is the **entry point** for navigating conversation summaries.
 
-## 2026-02
-- `2026-02-09-dev-up-dev-down-design.md` — why and how we standardized local start/stop scripts (ties to ADR-0001).
+## Browse by date
+- 2026
+  - February: `by-date/2026/2026-02.md`
+
+## Browse by topic
+- Topic catalog: `topics/index.md`
+- Common topics:
+  - Workflow: `topics/workflow.md`
+
+## Where the full entries live
+Full summaries are stored under: `entries/YYYY/YYYY-MM-DD-topic.md`
