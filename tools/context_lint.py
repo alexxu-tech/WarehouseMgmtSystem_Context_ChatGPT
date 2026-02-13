@@ -64,7 +64,7 @@ def check_structure(repo: Path) -> List[Finding]:
     exists(repo / "tools" / "scripts", f, "TOOLS_SCRIPTS_DIR", "directory tools/scripts")
 
     # architecture
-    for fn in ["overview.md", "backend.md", "frontend.md", "data-model.md"]:
+    for fn in ["overview.md", "backend.md", "frontend.md", "data_model.md"]:
         exists(repo / "architecture" / fn, f, "ARCH_FILE", f"file architecture/{fn}")
 
     # decisions
