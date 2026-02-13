@@ -131,7 +131,7 @@ allowed.
     ├─ overview.md
     ├─ backend.md
     ├─ frontend.md
-    └─ data-model.md
+    └─ data_model.md
 
 Purpose: 
 - Describes the technical structure of the WMS product.
@@ -147,7 +147,7 @@ File Responsibilities:
 -   `frontend.md`\
     UI structure, data flow, and interaction patterns.
 
--   `data-model.md`\
+-   `data_model.md`\
     Canonical definition of entities, relations, and constraints.
 
 Rules: - Describes the product, not this context repository. - Must
