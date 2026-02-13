@@ -1,0 +1,25 @@
+name: context-lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  context-lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # warnings only
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run context lint (Layer 1 + Layer 3, ignore index/README/TEMPLATE)
+        run: |
+          python tools/context_lint.py --github
