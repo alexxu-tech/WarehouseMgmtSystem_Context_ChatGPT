@@ -1,116 +1,112 @@
 # Project Glossary
 
-This document defines standard terminology used in the Warehouse Management System (WMS) project.
-All contributors and AI assistants should follow these definitions to ensure consistent communication.
+This glossary defines key terms used in the
+WarehouseMgmtSystem_Context_ChatGPT repository.
 
----
+------------------------------------------------------------------------
 
-## Business Terms
+## WMS
 
-### Order
-A customer or internal request to move, ship, or receive goods.
-May include inbound, outbound, or transfer operations.
+Warehouse Management System. The main product project hosted at:
+https://github.com/alexxu-tech/WarehouseMgmtSystem
 
----
+------------------------------------------------------------------------
 
-### Inventory
-The quantity of physical goods stored in a warehouse and tracked by the system.
+## Context Repository
 
----
+The WarehouseMgmtSystem_Context_ChatGPT repository. A structured
+knowledge base that preserves long-term project memory, reasoning
+history, and operational context.
 
-### SKU (Stock Keeping Unit)
-A unique identifier representing a specific product type.
-Each SKU maps to one logical product definition.
+------------------------------------------------------------------------
 
----
+## ADR (Architecture Decision Record)
 
-### Warehouse
-A physical location where goods are stored and processed.
-May contain multiple zones and locations.
+A formal document that records a significant technical decision. Stored
+under `decisions/adr/` and maintained as immutable records.
 
----
+------------------------------------------------------------------------
 
-### Location
-A specific storage position inside a warehouse (e.g., shelf, bin, rack position).
+## Entry
 
----
+A single conversation record stored under `conversations/entries/`.
+Entries preserve technical discussions, reasoning, and conclusions.
 
-### Batch
-A grouped set of operations processed together (e.g., picking batch, receiving batch).
+------------------------------------------------------------------------
 
----
+## Conversation Index
 
-## User Roles
+A navigational document under `conversations/index.md` and
+`conversations/by-date/` that links and organizes entries.
 
-### Admin
-A system-level administrator with full configuration privileges.
+------------------------------------------------------------------------
 
----
+## Verify Record
 
-### Operator
-A warehouse staff member responsible for daily operations.
+A manual validation document stored under `verify/YYYY/`. Each file
+records one real verification session.
 
----
+------------------------------------------------------------------------
 
-### Supervisor
-A user responsible for monitoring and managing operators.
+## Workflow
 
----
+A reproducible operational or development procedure documented under
+`workflows/`.
 
-## System and Architecture Terms
+------------------------------------------------------------------------
 
-### Backend
-The FastAPI-based service providing APIs and business logic.
+## Context Lint
 
----
+The automated validation system implemented by `tools/context_lint.py`
+and executed via GitHub Actions. It enforces repository structure and
+consistency rules.
 
-### Frontend
-The Vite-based web application used by end users.
+------------------------------------------------------------------------
 
----
+## Dev-Up / Dev-Down
 
-### Service Layer
-The backend layer responsible for business rules and workflows.
+The local development environment lifecycle defined in ADR-0001,
+including startup and teardown procedures.
 
----
+------------------------------------------------------------------------
 
-### ADR (Architecture Decision Record)
-A formal document describing a significant technical decision.
-Stored under `decisions/`.
+## Append-Only Rule
 
----
+A governance rule stating that historical records must not be rewritten,
+except for same-day updates to active conversation entries.
 
-### Context Repository
-A documentation-only repository storing architectural and historical project context.
+------------------------------------------------------------------------
 
----
+## By-Date Index
 
-### Health Check
-A lightweight API endpoint used to verify service availability.
-Usually exposed at `/health`.
+Chronological index files under `conversations/by-date/` that organize
+entries by year and month.
 
----
+------------------------------------------------------------------------
 
-### Dev Scripts
-The `dev-up.sh` and `dev-down.sh` scripts used to manage local development environment lifecycle.
+## Topic Index
 
----
+Semantic classification files under `conversations/topics/` used to
+group related conversation entries.
 
-## Development Conventions
+------------------------------------------------------------------------
 
-### Local Development
-Development performed using Docker, local backend, and local frontend.
-Managed via standardized scripts.
+## Validation Session
 
----
+A real-world manual testing activity whose results are documented in a
+verify record.
 
-### Production Environment
-The deployed system running in cloud or on-premise infrastructure.
-Not yet implemented.
+------------------------------------------------------------------------
 
----
+## Standard Operating Workflow
 
-## Update Policy
-- New terms must be added here when introduced
-- Deprecated terms should be marked clearly
-- Definitions should be concise and unambiguous
+The recommended sequence of activities defined in README, covering
+status review, decision review, implementation, verification, and
+documentation.
+
+------------------------------------------------------------------------
+
+## Governance Rules
+
+The set of structural and behavioral constraints defined in README and
+enforced by context lint.

@@ -1,196 +1,279 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-Context repository linter (PR gate).
-
-Checks:
-- Required directories/files exist
-- Naming conventions
-- Index synchronization:
-  - every conversations/entries/YYYY/YYYY-MM-DD-*.md must appear in conversations/by-date/YYYY/YYYY-MM.md
-  - every conversations/topics/*.md (except index.md) must appear in conversations/topics/index.md
-- README "NOT the WMS product" notice exists (recommended guardrail)
-
-Exit code:
-- 0 pass
-- 1 fail
-"""
-
 from __future__ import annotations
 
+import argparse
 import os
 import re
-import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-
-REQUIRED_DIRS = [
-    "architecture",
-    "decisions",
-    "status",
-    "workflows",
-    "verify",
-    "conversations",
-]
-
-REQUIRED_CONV_ITEMS = [
-    "conversations/README.md",
-    "conversations/index.md",
-    "conversations/by-date",
-    "conversations/entries",
-    "conversations/topics",
-    "conversations/topics/index.md",
-]
-
-DECISION_RE = re.compile(r"^decisions/\d{4}-[a-z0-9].*\.md$")
-ENTRY_RE = re.compile(r"^conversations/entries/(\d{4})/(\d{4})-(\d{2})-(\d{2})-[^/]+\.md$")
-BYDATE_RE = re.compile(r"^conversations/by-date/(\d{4})/(\d{4})-(\d{2})\.md$")
-
-README_GUARD_PHRASE = "NOT the Warehouse Management System (WMS) product"
+from typing import List, Optional
 
 
-def fail(errors: list[str]) -> int:
-    for e in errors:
-        print(f"[FAIL] {e}")
-    return 1
+ENTRY_RE = re.compile(r"^(?P<date>\d{4}-\d{2}-\d{2})-(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
+ADR_RE = re.compile(r"^(?P<num>\d{4})-(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
+
+# Files to ignore in sync checks
+IGNORE_NAMES = {"index.md", "README.md", "TEMPLATE.md"}
 
 
-def ok(msg: str) -> None:
-    print(f"[OK] {msg}")
+@dataclass
+class Finding:
+    level: str  # "warning" | "error"
+    code: str
+    message: str
+    path: Optional[str] = None
+
+    def to_github_annotation(self) -> str:
+        loc = f" file={self.path}" if self.path else ""
+        return f"::{self.level}{loc}::{self.code}: {self.message}"
 
 
 def read_text(p: Path) -> str:
     try:
-        return p.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        # fallback
-        return p.read_text(errors="replace")
+        return p.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return ""
 
 
-def iter_md_files(root: Path) -> Iterable[Path]:
-    for p in root.rglob("*.md"):
-        if p.is_file():
-            yield p
+def exists(p: Path, findings: List[Finding], code: str, desc: str) -> None:
+    if not p.exists():
+        findings.append(Finding("warning", code, f"Missing required {desc}.", str(p.as_posix())))
 
 
-def normalize_rel(p: Path) -> str:
-    return str(p.relative_to(REPO_ROOT)).replace("\\", "/")
+def contains_ref(text: str, needle: str) -> bool:
+    return needle in text
+
+
+def check_structure(repo: Path) -> List[Finding]:
+    f: List[Finding] = []
+
+    # Root
+    exists(repo / "README.md", f, "ROOT_README", "file README.md")
+    exists(repo / "glossary.md", f, "ROOT_GLOSSARY", "file glossary.md")
+
+    # Top-level dirs
+    for d in [".github", "tools", "architecture", "decisions", "status", "workflows", "verify", "conversations"]:
+        exists(repo / d, f, "ROOT_DIR", f"directory {d}")
+
+    # .github/workflows/context-lint.yml
+    exists(repo / ".github" / "workflows" / "context-lint.yml", f, "GHA_WORKFLOW", "workflow .github/workflows/context-lint.yml")
+
+    # tools
+    exists(repo / "tools" / "README.md", f, "TOOLS_README", "file tools/README.md")
+    exists(repo / "tools" / "context_lint.py", f, "TOOLS_LINT", "file tools/context_lint.py")
+    exists(repo / "tools" / "scripts", f, "TOOLS_SCRIPTS_DIR", "directory tools/scripts")
+
+    # architecture
+    for fn in ["overview.md", "backend.md", "frontend.md", "data-model.md"]:
+        exists(repo / "architecture" / fn, f, "ARCH_FILE", f"file architecture/{fn}")
+
+    # decisions
+    exists(repo / "decisions" / "README.md", f, "DEC_README", "file decisions/README.md")
+    exists(repo / "decisions" / "adr", f, "DEC_ADR_DIR", "directory decisions/adr")
+    exists(repo / "decisions" / "templates", f, "DEC_TPL_DIR", "directory decisions/templates")
+    exists(repo / "decisions" / "templates" / "TEMPLATE.md", f, "DEC_TPL_FILE", "file decisions/templates/TEMPLATE.md")
+
+    # status
+    for fn in ["current.md", "next-actions.md", "blockers.md", "roadmap.md"]:
+        exists(repo / "status" / fn, f, "STATUS_FILE", f"file status/{fn}")
+    exists(repo / "status" / "archive", f, "STATUS_ARCHIVE_DIR", "directory status/archive")
+
+    # verify
+    exists(repo / "verify" / "README.md", f, "VERIFY_README", "file verify/README.md")
+
+    # conversations
+    conv = repo / "conversations"
+    exists(conv / "README.md", f, "CONV_README", "file conversations/README.md")
+    exists(conv / "index.md", f, "CONV_INDEX", "file conversations/index.md")
+    exists(conv / "by-date", f, "CONV_BY_DATE_DIR", "directory conversations/by-date")
+    exists(conv / "entries", f, "CONV_ENTRIES_DIR", "directory conversations/entries")
+    exists(conv / "entries" / "TEMPLATE.md", f, "CONV_ENTRY_TEMPLATE", "file conversations/entries/TEMPLATE.md")
+    exists(conv / "topics", f, "CONV_TOPICS_DIR", "directory conversations/topics")
+    exists(conv / "topics" / "index.md", f, "CONV_TOPICS_INDEX", "file conversations/topics/index.md")
+
+    return f
+
+
+def check_adr_numbering(repo: Path) -> List[Finding]:
+    f: List[Finding] = []
+    adr_dir = repo / "decisions" / "adr"
+    if not adr_dir.exists():
+        return f
+
+    adrs = sorted([p for p in adr_dir.iterdir() if p.is_file() and p.suffix == ".md"])
+    nums: List[int] = []
+
+    for p in adrs:
+        m = ADR_RE.match(p.name)
+        if not m:
+            f.append(Finding("warning", "ADR_NAME", "ADR filename must be '000X-kebab-case.md'.", str(p.as_posix())))
+            continue
+        nums.append(int(m.group("num")))
+
+    if not nums:
+        f.append(Finding("warning", "ADR_EMPTY", "No ADRs found in decisions/adr/.", str(adr_dir.as_posix())))
+        return f
+
+    nums_sorted = sorted(nums)
+    if nums_sorted[0] != 1:
+        f.append(Finding("warning", "ADR_START", f"ADR numbering should start at 0001, found {nums_sorted[0]:04d}.", str(adr_dir.as_posix())))
+
+    expected = list(range(nums_sorted[0], nums_sorted[0] + len(nums_sorted)))
+    if nums_sorted != expected:
+        missing = sorted(set(expected) - set(nums_sorted))
+        dupes = [n for n in nums_sorted if nums_sorted.count(n) > 1]
+        msg = "ADR numbering must be continuous (no gaps)."
+        details = []
+        if missing:
+            details.append("missing=" + ",".join(f"{n:04d}" for n in missing))
+        if dupes:
+            details.append("duplicates=" + ",".join(f"{n:04d}" for n in sorted(set(dupes))))
+        if details:
+            msg += " (" + "; ".join(details) + ")"
+        f.append(Finding("warning", "ADR_CONTINUOUS", msg, str(adr_dir.as_posix())))
+
+    return f
+
+
+def gather_entries(repo: Path) -> List[Path]:
+    entries_dir = repo / "conversations" / "entries"
+    if not entries_dir.exists():
+        return []
+    entries: List[Path] = []
+    for p in entries_dir.rglob("*.md"):
+        if not p.is_file():
+            continue
+        if p.name in IGNORE_NAMES:
+            continue
+        if ENTRY_RE.match(p.name):
+            entries.append(p)
+    return sorted(entries)
+
+
+def check_conversations_sync(repo: Path) -> List[Finding]:
+    f: List[Finding] = []
+    conv = repo / "conversations"
+    index_p = conv / "index.md"
+    topics_index_p = conv / "topics" / "index.md"
+
+    entries = gather_entries(repo)
+    if not entries:
+        return f
+
+    index_text = read_text(index_p) if index_p.exists() else ""
+    topics_index_text = read_text(topics_index_p) if topics_index_p.exists() else ""
+
+    topics_dir = conv / "topics"
+    topic_files = []
+    if topics_dir.exists():
+        topic_files = sorted([p for p in topics_dir.glob("*.md")
+                              if p.is_file() and p.name not in IGNORE_NAMES])
+
+    topic_texts = {p: read_text(p) for p in topic_files}
+
+    # Validate topics/index.md references exist
+    if topics_index_p.exists():
+        for ref in re.findall(r"(?:\(|\s)([A-Za-z0-9_\-./]+\.md)", topics_index_text):
+            name = Path(ref).name
+            if name in IGNORE_NAMES:
+                continue
+            if "/topics/" in ref or ref.startswith("topics/") or ref.startswith("conversations/topics/"):
+                tp = topics_dir / name
+                if not tp.exists():
+                    f.append(Finding("warning", "TOPIC_REF", "topics/index.md references a missing topic file.", str(tp.as_posix())))
+
+    for e in entries:
+        m = ENTRY_RE.match(e.name)
+        assert m
+        yyyy, mm, _ = m.group("date").split("-")
+        month_index = conv / "by-date" / yyyy / f"{yyyy}-{mm}.md"
+
+        # by-date month index
+        if not month_index.exists():
+            f.append(Finding("warning", "BYDATE_MISSING", f"Missing by-date month index for entry {e.name}.", str(month_index.as_posix())))
+        else:
+            txt = read_text(month_index)
+            if not contains_ref(txt, e.name):
+                f.append(Finding("warning", "BYDATE_SYNC", f"Entry {e.name} not referenced in {month_index.name}.", str(month_index.as_posix())))
+
+        # conversations/index.md
+        if index_p.exists() and not contains_ref(index_text, e.name):
+            f.append(Finding("warning", "CONV_INDEX_SYNC", f"Entry {e.name} not referenced in conversations/index.md.", str(index_p.as_posix())))
+
+        # topics/*.md
+        in_any_topic = any(contains_ref(txt, e.name) for txt in topic_texts.values())
+        if not in_any_topic:
+            f.append(Finding("warning", "TOPIC_SYNC", f"Entry {e.name} not referenced in any conversations/topics/*.md.", str(topics_dir.as_posix())))
+
+    # Dangling refs in by-date
+    by_date_dir = conv / "by-date"
+    if by_date_dir.exists():
+        for p in by_date_dir.rglob("*.md"):
+            if not p.is_file():
+                continue
+            txt = read_text(p)
+            for ref in re.findall(r"(\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md)", txt):
+                if ref in IGNORE_NAMES:
+                    continue
+                yyyy = ref[:4]
+                expected = conv / "entries" / yyyy / ref
+                if not expected.exists():
+                    f.append(Finding("warning", "BYDATE_DANGLING", f"By-date index references missing entry {ref}.", str(p.as_posix())))
+
+    # Dangling refs in topics
+    for tp, ttxt in topic_texts.items():
+        for ref in re.findall(r"(\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md)", ttxt):
+            if ref in IGNORE_NAMES:
+                continue
+            yyyy = ref[:4]
+            expected = conv / "entries" / yyyy / ref
+            if not expected.exists():
+                f.append(Finding("warning", "TOPIC_DANGLING", f"Topic references missing entry {ref}.", str(tp.as_posix())))
+
+    return f
+
+
+def write_step_summary(findings: List[Finding]) -> None:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+    lines: List[str] = []
+    lines.append("# Context Lint Summary")
+    if not findings:
+        lines.append("✅ No issues found.")
+    else:
+        lines.append(f"⚠️ {len(findings)} issue(s) found (warnings only).")
+        lines.append("")
+        lines.append("| Level | Code | Path | Message |")
+        lines.append("|---|---|---|---|")
+        for x in findings:
+            path = x.path or ""
+            msg = x.message.replace("\n", " ")
+            lines.append(f"| {x.level} | {x.code} | `{path}` | {msg} |")
+    Path(summary_path).write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> int:
-    errors: list[str] = []
+    ap = argparse.ArgumentParser(description="Context repository linter (Layer 1 + Layer 3).")
+    ap.add_argument("--repo", default=".", help="Path to repo root (default: current directory).")
+    ap.add_argument("--github", action="store_true", help="Emit GitHub Actions annotations and step summary.")
+    args = ap.parse_args()
 
-    # 1) required dirs
-    for d in REQUIRED_DIRS:
-        if not (REPO_ROOT / d).exists():
-            errors.append(f"Missing required directory: {d}")
-    # required conversation structure
-    for item in REQUIRED_CONV_ITEMS:
-        if not (REPO_ROOT / item).exists():
-            errors.append(f"Missing required conversations item: {item}")
+    repo = Path(args.repo).resolve()
 
-    # 2) naming conventions
-    # decisions
-    decisions_dir = REPO_ROOT / "decisions"
-    if decisions_dir.exists():
-        for p in decisions_dir.glob("*.md"):
-            rel = normalize_rel(p)
-            if not DECISION_RE.match(rel):
-                errors.append(
-                    f"Invalid ADR filename: {rel} (expected decisions/000X-*.md)"
-                )
+    findings: List[Finding] = []
+    findings.extend(check_structure(repo))
+    findings.extend(check_adr_numbering(repo))
+    findings.extend(check_conversations_sync(repo))
 
-    # entries: enforce yyyy folder + yyyy-mm-dd prefix
-    entries_dir = REPO_ROOT / "conversations" / "entries"
-    entry_paths: list[tuple[str, str, str]] = []  # (rel, yyyy, yyyy-mm)
-    if entries_dir.exists():
-        for p in iter_md_files(entries_dir):
-            rel = normalize_rel(p)
-            m = ENTRY_RE.match(rel)
-            if not m:
-                errors.append(
-                    f"Invalid entry filename: {rel} "
-                    f"(expected conversations/entries/YYYY/YYYY-MM-DD-*.md)"
-                )
-                continue
-            yyyy = m.group(1)
-            yyyy_mm = f"{m.group(2)}-{m.group(3)}"
-            entry_paths.append((rel, yyyy, yyyy_mm))
+    if args.github:
+        for x in findings:
+            print(x.to_github_annotation())
 
-    # by-date indexes existence + naming
-    bydate_dir = REPO_ROOT / "conversations" / "by-date"
-    bydate_index_files: set[str] = set()
-    if bydate_dir.exists():
-        for p in iter_md_files(bydate_dir):
-            rel = normalize_rel(p)
-            if not BYDATE_RE.match(rel):
-                errors.append(
-                    f"Invalid by-date index filename: {rel} "
-                    f"(expected conversations/by-date/YYYY/YYYY-MM.md)"
-                )
-            else:
-                bydate_index_files.add(rel)
+    write_step_summary(findings)
 
-    # 3) index synchronization: entries must appear in monthly by-date index
-    # Build map YYYY-MM -> set(entries)
-    entries_by_month: dict[tuple[str, str], list[str]] = {}
-    for rel, yyyy, yyyy_mm in entry_paths:
-        entries_by_month.setdefault((yyyy, yyyy_mm), []).append(rel)
-
-    for (yyyy, yyyy_mm), rel_entries in sorted(entries_by_month.items()):
-        idx_rel = f"conversations/by-date/{yyyy}/{yyyy_mm}.md"
-        idx_path = REPO_ROOT / idx_rel
-        if not idx_path.exists():
-            errors.append(
-                f"Missing monthly by-date index: {idx_rel} "
-                f"(needed for entries in {yyyy_mm})"
-            )
-            continue
-
-        idx_text = read_text(idx_path)
-        # Require each entry filename (basename) to appear in the index text.
-        for entry_rel in sorted(rel_entries):
-            basename = Path(entry_rel).name
-            if basename not in idx_text:
-                errors.append(
-                    f"Entry not indexed in {idx_rel}: missing reference to {basename}"
-                )
-
-    # 4) topics index synchronization
-    topics_dir = REPO_ROOT / "conversations" / "topics"
-    topics_index = topics_dir / "index.md"
-    if topics_dir.exists() and topics_index.exists():
-        idx_text = read_text(topics_index)
-        for p in topics_dir.glob("*.md"):
-            if p.name == "index.md":
-                continue
-            # Require the topic filename to appear in topics/index.md
-            if p.name not in idx_text:
-                errors.append(
-                    f"Topic file not listed in conversations/topics/index.md: {p.name}"
-                )
-
-    # 5) README guard phrase
-    readme = REPO_ROOT / "README.md"
-    if readme.exists():
-        t = read_text(readme)
-        if README_GUARD_PHRASE not in t:
-            errors.append(
-                f"README.md missing guard phrase: '{README_GUARD_PHRASE}'. "
-                f"(Add a clear notice that this repo is not the WMS product.)"
-            )
-    else:
-        errors.append("Missing README.md at repo root")
-
-    if errors:
-        return fail(errors)
-
-    ok("Context lint passed.")
-    return 0
+    return 1 if findings else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
