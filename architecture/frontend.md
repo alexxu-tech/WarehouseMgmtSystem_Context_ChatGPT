@@ -21,8 +21,10 @@ The frontend is responsible for:
 - Build Tool: Vite
 - Package Manager: pnpm
 - Framework: SPA (React/Vue-ready)
+- UI Framework: Ant Design
+- Routing: React Router
 - HTTP Client: fetch / axios
-- Styling: CSS / Utility Framework (planned)
+- Styling: Ant Design / CSS / Utility Framework (planned)
 
 ------------------------------------------------------------------------
 
